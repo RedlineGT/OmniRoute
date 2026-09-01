@@ -11,6 +11,7 @@ export const LANE_ENGINES = [
   "caveman",
   "aggressive",
   "ultra",
+  "llmlingua",
 ] as const;
 export interface PlaygroundInputProps {
   text: string;
@@ -46,16 +47,13 @@ function EngineOptions({
         <label key={engine} className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            data-testid={`engine-toggle-${engine}`}
             checked={active.includes(engine)}
             onChange={() => onToggleActive(engine)}
           />
           {engine}
         </label>
       ))}
-      <label className="flex items-center gap-2 text-sm opacity-50">
-        <input type="checkbox" disabled /> llmlingua{" "}
-        <span className="text-[10px]">({t("requiresOnnx")})</span>
-      </label>
     </div>
   );
 }
