@@ -11,6 +11,9 @@ process.env.DATA_DIR = TEST_DATA_DIR;
 const core = await import("../../../src/lib/db/core.ts");
 const { getCompressionSettings, updateCompressionSettings } =
   await import("../../../src/lib/db/compression.ts");
+const { __setUltraSlmTestHooks, __resetUltraEntryForTests } = await import(
+  "../../../open-sse/services/compression/engines/llmlingua/ultraEntry.ts"
+);
 
 beforeEach(() => {
   core.resetDbInstance();
@@ -182,17 +185,26 @@ describe("updateCompressionSettings", () => {
   });
 
   it("round-trips ultraEngine + ultraSlmPrewarm (Phase 4 B), defaulting off", async () => {
-    const before = await getCompressionSettings();
-    assert.equal(before.ultraEngine, "heuristic");
-    assert.equal(before.ultraSlmPrewarm, false);
+    // Saving these settings fires a fire-and-forget maybePrewarmUltraSlmOnConfig()
+    // call (src/lib/db/compression.ts). This test only asserts the DB round-trip, so
+    // stub the SLM backend as unavailable to keep it isolated from the real worker /
+    // network — same seam tests/unit/compression/llmlingua-ultra-entry.test.ts uses.
+    __setUltraSlmTestHooks({ available: false });
+    try {
+      const before = await getCompressionSettings();
+      assert.equal(before.ultraEngine, "heuristic");
+      assert.equal(before.ultraSlmPrewarm, false);
 
-    await updateCompressionSettings({
-      ultraEngine: "slm",
-      ultraSlmPrewarm: true,
-    } as any);
+      await updateCompressionSettings({
+        ultraEngine: "slm",
+        ultraSlmPrewarm: true,
+      } as any);
 
-    const after = await getCompressionSettings();
-    assert.equal(after.ultraEngine, "slm");
-    assert.equal(after.ultraSlmPrewarm, true);
+      const after = await getCompressionSettings();
+      assert.equal(after.ultraEngine, "slm");
+      assert.equal(after.ultraSlmPrewarm, true);
+    } finally {
+      __resetUltraEntryForTests();
+    }
   });
 });
